@@ -1,10 +1,10 @@
 import numpy as np
 
-from sbox import aes_sbox, reverse_aes_sbox, galois
+from sbox import aes_sbox, reverse_aes_sbox, galoisMult,  galoisField, inverseGaloisField
 from pprint import pprint
 import itertools
 import secrets
-
+from copy import deepcopy
 
 class AES:
     
@@ -32,6 +32,20 @@ class AES:
         data[3] = AES.shiftArr(data[3], 3 if inverse else -3)
         return list(np.transpose(data))
     
+    
+    
+    
+    @staticmethod
+    def _mixColumns(cols, inverse=False):
+        def mixColumn(col, index, inverse=False):
+            field = inverseGaloisField if inverse else galoisField
+            newCol = []
+            for i in range(len(col)):
+                newCol.append(galoisMult[field[i][0]][col[0]] ^ galoisMult[field[i][1]][col[1]] ^ galoisMult[field[i][2]][col[2]] ^ galoisMult[field[i][3]][col[3]])
+            return newCol
+        for i in range(4):
+            cols[i] = mixColumn(cols[i], i, inverse=inverse)
+        return cols
 
     @staticmethod
     def _getDigits(val:int):
@@ -48,7 +62,7 @@ class AES:
         return list(map(lambda x: list(map(lambda y: AES._getInverseSBoxVal(y) if inverse else AES._getSBoxVal(y), x)), data))
 
     @staticmethod
-    def encrypt(bytes):
+    def encrypt(data):
         pass
 
     @staticmethod
@@ -158,13 +172,10 @@ class AES:
 
         
 
-'''key = [[0x54, 0x68, 0x61, 0x74], [0x73, 0x20, 0x6d, 0x79], [0x20, 0x4b, 0x75, 0x6e], [0x67, 0x20, 0x46, 0x75]]
+key = [[0x54, 0x68, 0x61, 0x74], [0x73, 0x20, 0x6d, 0x79], [0x20, 0x4b, 0x75, 0x6e], [0x67, 0x20, 0x46, 0x75]]
 data = [[0x54, 0x77, 0x6f, 0x20], [0x4f, 0x6e, 0x65, 0x20], [0x4e, 0x69, 0x6e, 0x65], [0x20, 0x54, 0x77, 0x6f]]
-keys = AES.keySchedule(key, 11) # 10 rounds plus initial key
-data = AES._addRoundKey(data, keys[0])
-data = AES._subBytes(data)
-data = AES._shiftRows(data)
-AES.displayKeys([data])'''
+
+
 
 
             
