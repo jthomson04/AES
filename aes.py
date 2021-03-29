@@ -41,6 +41,10 @@ class AES:
             field = inverseGaloisField if inverse else galoisField
             newCol = []
             for i in range(len(col)):
+                yeet = galoisMult[field[i][0]][col[0]]
+                yeet2 = galoisMult[field[i][1]][col[1]]
+                yeet3 = galoisMult[field[i][2]][col[2]]
+                yeet4 = galoisMult[field[i][3]][col[3]]
                 newCol.append(galoisMult[field[i][0]][col[0]] ^ galoisMult[field[i][1]][col[1]] ^ galoisMult[field[i][2]][col[2]] ^ galoisMult[field[i][3]][col[3]])
             return newCol
         for i in range(4):
@@ -62,12 +66,37 @@ class AES:
         return list(map(lambda x: list(map(lambda y: AES._getInverseSBoxVal(y) if inverse else AES._getSBoxVal(y), x)), data))
 
     @staticmethod
-    def encrypt(data):
-        pass
+    def encrypt(string, key=None):
+        if key is None:
+            key = AES.generateRandomKey()
+        roundKeys = AES.keySchedule(key, 11)
+        rawData = list(bytearray(string, encoding='iso-8859-1'))
+        bytes = []
+        for i in AES.fourAtATime(rawData):
+            bytes.append(i)
+
+        data = AES._addRoundKey(bytes, roundKeys[0])
+        for i in range(1, 10):
+            AES.displayKeys([data])
+            print()
+            data = AES._subBytes(data)
+            data = AES._shiftRows(data)
+            data = AES._mixColumns(data)
+            data = AES._addRoundKey(data, roundKeys[i])
+        data = AES._subBytes(data)
+        data = AES._shiftRows(data)
+        data = AES._addRoundKey(data, roundKeys[10])
+        return data
+        
+
 
     @staticmethod
-    def decrypt(bytes):
-        pass
+    def decrypt(string, key):
+        # String is bytes converted to string using utf-32
+        data = list(bytearray(string, encoding='iso-8859-1'))
+        
+        data = data[::8]
+        print(list(map(lambda j: hex(j)[2:] if len(hex(j))== 4 else "0" + hex(j)[2], data)))
 
     @staticmethod
     def shiftArr(row, amount:int):
@@ -141,10 +170,7 @@ class AES:
             index+=1
             for i in range(3):
                 keys.append(elementWiseXOR(keys[index+i-1], keys[index+i-4]))
-        def fourAtATime(iterator):
-            amount = len(iterator)
-            for i in range(0, amount, 4):
-                yield iterator[i: i+4]
+    
 
         keys = []
         keys.append(key[0])
@@ -155,9 +181,15 @@ class AES:
             getBlock(i+1, 4*(1+i))
         # keys will be an array of shape [4*amount, 4], each element is a byte
         newKeys = []
-        for x in fourAtATime(keys):
+        for x in AES.fourAtATime(keys):
             newKeys.append(x)
         return newKeys
+
+    @staticmethod
+    def fourAtATime(iterator):
+        amount = len(iterator)
+        for i in range(0, amount, 4):
+            yield iterator[i: i+4]
 
     @staticmethod
     def generateRandomKey():
@@ -168,12 +200,28 @@ class AES:
         for i in range(4):
             key.append([rand(), rand(), rand(), rand()])
         return key
+
+    @staticmethod
+    def bytesToString(data):
+        x = bytearray(np.array(data).flatten())
+        '''s = ""
+        for i in x:
+            s += chr(i)
+        return s'''
+        return x.decode(encoding='iso-8859-1')
+
     
 
         
 
 key = [[0x54, 0x68, 0x61, 0x74], [0x73, 0x20, 0x6d, 0x79], [0x20, 0x4b, 0x75, 0x6e], [0x67, 0x20, 0x46, 0x75]]
 data = [[0x54, 0x77, 0x6f, 0x20], [0x4f, 0x6e, 0x65, 0x20], [0x4e, 0x69, 0x6e, 0x65], [0x20, 0x54, 0x77, 0x6f]]
+
+encoded = AES.encrypt("Two One Nine Two", key=key)
+AES.displayKeys([encoded])
+cryptex = AES.bytesToString(encoded)
+print(cryptex)
+AES.decrypt(cryptex, key)
 
 
 
