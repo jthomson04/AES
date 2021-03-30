@@ -74,7 +74,7 @@ class AES:
         bytes = []
         for i in AES.fourAtATime(rawData):
             bytes.append(i)
-
+        print(bytes)
         data = AES._addRoundKey(bytes, roundKeys[0])
         for i in range(1, 10):
             AES.displayKeys([data])
@@ -94,9 +94,26 @@ class AES:
     def decrypt(string, key):
         # String is bytes converted to string using utf-32
         data = list(bytearray(string, encoding='iso-8859-1'))
+        data = list(map(lambda j: j, data[::8]))
+        bytes = []
+        for i in AES.fourAtATime(data):
+            bytes.append(i)
+        roundKeys = AES.keySchedule(key, 11)
+        data = AES._addRoundKey(bytes, roundKeys[10])
+
+        for i in range(9, 0, -1):
+            AES.displayKeys([data])
+            print()
+            data = AES._shiftRows(data, inverse=True)
+            data = AES._subBytes(data, inverse=True)
+            data = AES._addRoundKey(data, roundKeys[i])
+            data = AES._mixColumns(data, inverse=True)
+        data = AES._shiftRows(data, inverse=True)
+        data = AES._subBytes(data, inverse=True)
+        data = AES._addRoundKey(data, roundKeys[0])
+        return data
         
-        data = data[::8]
-        print(list(map(lambda j: hex(j)[2:] if len(hex(j))== 4 else "0" + hex(j)[2], data)))
+        
 
     @staticmethod
     def shiftArr(row, amount:int):
@@ -217,11 +234,15 @@ class AES:
 key = [[0x54, 0x68, 0x61, 0x74], [0x73, 0x20, 0x6d, 0x79], [0x20, 0x4b, 0x75, 0x6e], [0x67, 0x20, 0x46, 0x75]]
 data = [[0x54, 0x77, 0x6f, 0x20], [0x4f, 0x6e, 0x65, 0x20], [0x4e, 0x69, 0x6e, 0x65], [0x20, 0x54, 0x77, 0x6f]]
 
-encoded = AES.encrypt("Two One Nine Two", key=key)
+encoded = AES.encrypt("JOHN is verycool", key=key)
 AES.displayKeys([encoded])
 cryptex = AES.bytesToString(encoded)
 print(cryptex)
-AES.decrypt(cryptex, key)
+print("\n\n\ndecrypting: \n\n\n")
+data = AES.decrypt(cryptex, key)
+print(AES.bytesToString(data))
+
+
 
 
 
