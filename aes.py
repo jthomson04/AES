@@ -5,6 +5,8 @@ from pprint import pprint
 import itertools
 import secrets
 from copy import deepcopy
+import random
+import string
 
 class AES:
     
@@ -71,14 +73,14 @@ class AES:
             key = AES.generateRandomKey()
         roundKeys = AES.keySchedule(key, 11)
         rawData = list(bytearray(string, encoding='iso-8859-1'))
+        #rawData += [0 for _ in range(rawData % 16)]
         bytes = []
         for i in AES.fourAtATime(rawData):
             bytes.append(i)
-        print(bytes)
+        
         data = AES._addRoundKey(bytes, roundKeys[0])
         for i in range(1, 10):
-            AES.displayKeys([data])
-            print()
+            
             data = AES._subBytes(data)
             data = AES._shiftRows(data)
             data = AES._mixColumns(data)
@@ -86,7 +88,7 @@ class AES:
         data = AES._subBytes(data)
         data = AES._shiftRows(data)
         data = AES._addRoundKey(data, roundKeys[10])
-        return data
+        return data, key
         
 
 
@@ -102,8 +104,7 @@ class AES:
         data = AES._addRoundKey(bytes, roundKeys[10])
 
         for i in range(9, 0, -1):
-            AES.displayKeys([data])
-            print()
+            
             data = AES._shiftRows(data, inverse=True)
             data = AES._subBytes(data, inverse=True)
             data = AES._addRoundKey(data, roundKeys[i])
@@ -218,29 +219,34 @@ class AES:
             key.append([rand(), rand(), rand(), rand()])
         return key
 
+
+    
     @staticmethod
-    def bytesToString(data):
+    def bytesToString(data, forPrinting=False):
         x = bytearray(np.array(data).flatten())
-        '''s = ""
+        x = list(x)[::8] if forPrinting else list(x)
+        s = ""
         for i in x:
             s += chr(i)
-        return s'''
-        return x.decode(encoding='iso-8859-1')
+        return s
+        #return x.decode(encoding='iso-8859-1')
 
     
 
+
+if __name__ == "__main__":
+    #key = [[0x54, 0x68, 0x61, 0x74], [0x73, 0x20, 0x6d, 0x79], [0x20, 0x4b, 0x75, 0x6e], [0x67, 0x20, 0x46, 0x75]]
+    data = [[0x54, 0x77, 0x6f, 0x20], [0x4f, 0x6e, 0x65, 0x20], [0x4e, 0x69, 0x6e, 0x65], [0x20, 0x54, 0x77, 0x6f]]
+    '''for i in range(1000):
+        encoded, key = AES.encrypt("JOHN is verycool")
+        AES.displayKeys([encoded])
+        cryptex = AES.bytesToString(encoded)
         
+        data = AES.decrypt(cryptex, key)
+        data = AES.bytesToString(data, forPrinting=True)
+        assert(data == "JOHN is verycool")'''
+        #x = AES.fourAtATime([1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
 
-key = [[0x54, 0x68, 0x61, 0x74], [0x73, 0x20, 0x6d, 0x79], [0x20, 0x4b, 0x75, 0x6e], [0x67, 0x20, 0x46, 0x75]]
-data = [[0x54, 0x77, 0x6f, 0x20], [0x4f, 0x6e, 0x65, 0x20], [0x4e, 0x69, 0x6e, 0x65], [0x20, 0x54, 0x77, 0x6f]]
-
-encoded = AES.encrypt("JOHN is verycool", key=key)
-AES.displayKeys([encoded])
-cryptex = AES.bytesToString(encoded)
-print(cryptex)
-print("\n\n\ndecrypting: \n\n\n")
-data = AES.decrypt(cryptex, key)
-print(AES.bytesToString(data))
 
 
 
