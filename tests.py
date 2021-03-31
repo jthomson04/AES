@@ -2,6 +2,7 @@ import unittest
 from aes import AES
 import string
 import random
+import os
 
 class TestAES(unittest.TestCase):
     def test_SingleByteEncryptDecrypt(self):

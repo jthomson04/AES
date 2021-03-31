@@ -1,12 +1,12 @@
 import numpy as np
 
 from sbox import aes_sbox, reverse_aes_sbox, galoisMult,  galoisField, inverseGaloisField
-from pprint import pprint
 import itertools
 import secrets
-from copy import deepcopy
 import random
 import string
+from multiprocessing import Pool
+from functools import partial
 
 class AES:
     
@@ -68,8 +68,7 @@ class AES:
         return list(map(lambda x: list(map(lambda y: AES._getInverseSBoxVal(y) if inverse else AES._getSBoxVal(y), x)), data))
 
     @staticmethod
-    def encrypt(string, key=None):
-        def encrypt16Bytes(bytes):
+    def encrypt16Bytes(bytes, roundKeys):
             data = AES._addRoundKey(bytes, roundKeys[0])
             for i in range(1, 10):
             
@@ -82,7 +81,8 @@ class AES:
             data = AES._addRoundKey(data, roundKeys[10])
             return data
 
-
+    @staticmethod
+    def encrypt(string, key=None, multiThreaded=True):
         if key is None:
             key = AES.generateRandomKey()
         roundKeys = AES.keySchedule(key, 11)
@@ -90,37 +90,48 @@ class AES:
         #rawData += [0 for _ in range(rawData % 16)]
         bytes = AES._preprocess(rawData)
         encrypted = []
-        for b in bytes:
-            encrypted.append(encrypt16Bytes(b))
+        if multiThreaded:
+            encryptBytes = partial(AES.encrypt16Bytes, roundKeys=roundKeys)
+            with Pool() as p:
+                encrypted = p.map(encryptBytes, bytes)
+        else:
+            for b in bytes:
+                encrypted.append(AES.encrypt16Bytes(b, roundKeys))
        
         return AES.bytesToString(list(np.array(encrypted).flatten())), key
 
-
     @staticmethod
-    def decrypt(string, key):
-        def decrypt16Bytes(data):
-            data = AES._addRoundKey(data, roundKeys[10])
+    def decrypt16Bytes(data, roundKeys):
+        data = AES._addRoundKey(data, roundKeys[10])
 
-            for i in range(9, 0, -1):
-                
-                data = AES._shiftRows(data, inverse=True)
-                data = AES._subBytes(data, inverse=True)
-                data = AES._addRoundKey(data, roundKeys[i])
-                data = AES._mixColumns(data, inverse=True)
+        for i in range(9, 0, -1):
+            
             data = AES._shiftRows(data, inverse=True)
             data = AES._subBytes(data, inverse=True)
-            data = AES._addRoundKey(data, roundKeys[0])
-            return data
+            data = AES._addRoundKey(data, roundKeys[i])
+            data = AES._mixColumns(data, inverse=True)
+        data = AES._shiftRows(data, inverse=True)
+        data = AES._subBytes(data, inverse=True)
+        data = AES._addRoundKey(data, roundKeys[0])
+        return data
 
-
+    @staticmethod
+    def decrypt(string, key, multiThreaded=True):
+        
         # String is bytes converted to string using utf-32
         data = list(bytearray(string, encoding='iso-8859-1'))
         
         bytes = AES._preprocess(data)
         roundKeys = AES.keySchedule(key, 11)
         decrypted = []
-        for b in bytes:
-            decrypted.append(decrypt16Bytes(b))
+        if multiThreaded:
+            decryptBytes = partial(AES.decrypt16Bytes, roundKeys=roundKeys)
+            with Pool() as p:
+                decrypted = p.map(decryptBytes, bytes)
+            p.close()
+        else:
+            for b in bytes:
+                decrypted.append(AES.decrypt16Bytes(b, roundKeys))
 
         return AES.bytesToString(list(np.array(decrypted).flatten()), removeNulls=True)
         
@@ -269,17 +280,11 @@ class AES:
 
 if __name__ == "__main__":
     #key = [[0x54, 0x68, 0x61, 0x74], [0x73, 0x20, 0x6d, 0x79], [0x20, 0x4b, 0x75, 0x6e], [0x67, 0x20, 0x46, 0x75]]
-    data = [[0x54, 0x77, 0x6f, 0x20], [0x4f, 0x6e, 0x65, 0x20], [0x4e, 0x69, 0x6e, 0x65], [0x20, 0x54, 0x77, 0x6f]]
-    '''for i in range(1000):
-        encoded, key = AES.encrypt("JOHN is verycool")
-        AES.displayKeys([encoded])
-        cryptex = AES.bytesToString(encoded)
-        
-        data = AES.decrypt(cryptex, key)
-        data = AES.bytesToString(data, forPrinting=True)
-        assert(data == "JOHN is verycool")'''
-        #x = AES.fourAtATime([1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
-    print(AES.decrypt("JOHN is verycool", data))
+    for i in range(1):
+        text = ''.join([random.choice(string.ascii_letters) for _ in range(5000)])
+        encoded, key = AES.encrypt(text, multiThreaded=False)
+        data = AES.decrypt(encoded, key, multiThreaded=False)
+        assert(data == text)
 
 
 
