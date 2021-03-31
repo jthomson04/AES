@@ -69,52 +69,76 @@ class AES:
 
     @staticmethod
     def encrypt(string, key=None):
+        def encrypt16Bytes(bytes):
+            data = AES._addRoundKey(bytes, roundKeys[0])
+            for i in range(1, 10):
+            
+                data = AES._subBytes(data)
+                data = AES._shiftRows(data)
+                data = AES._mixColumns(data)
+                data = AES._addRoundKey(data, roundKeys[i])
+            data = AES._subBytes(data)
+            data = AES._shiftRows(data)
+            data = AES._addRoundKey(data, roundKeys[10])
+            return data
+
+
         if key is None:
             key = AES.generateRandomKey()
         roundKeys = AES.keySchedule(key, 11)
         rawData = list(bytearray(string, encoding='iso-8859-1'))
         #rawData += [0 for _ in range(rawData % 16)]
-        bytes = []
-        for i in AES.fourAtATime(rawData):
-            bytes.append(i)
-        
-        data = AES._addRoundKey(bytes, roundKeys[0])
-        for i in range(1, 10):
-            
-            data = AES._subBytes(data)
-            data = AES._shiftRows(data)
-            data = AES._mixColumns(data)
-            data = AES._addRoundKey(data, roundKeys[i])
-        data = AES._subBytes(data)
-        data = AES._shiftRows(data)
-        data = AES._addRoundKey(data, roundKeys[10])
-        return data, key
-        
+        bytes = AES._preprocess(rawData)
+        encrypted = []
+        for b in bytes:
+            encrypted.append(encrypt16Bytes(b))
+       
+        return AES.bytesToString(list(np.array(encrypted).flatten())), key
 
 
     @staticmethod
     def decrypt(string, key):
-        # String is bytes converted to string using utf-32
-        data = list(bytearray(string, encoding='iso-8859-1'))
-        data = list(map(lambda j: j, data[::8]))
-        bytes = []
-        for i in AES.fourAtATime(data):
-            bytes.append(i)
-        roundKeys = AES.keySchedule(key, 11)
-        data = AES._addRoundKey(bytes, roundKeys[10])
+        def decrypt16Bytes(data):
+            data = AES._addRoundKey(data, roundKeys[10])
 
-        for i in range(9, 0, -1):
-            
+            for i in range(9, 0, -1):
+                
+                data = AES._shiftRows(data, inverse=True)
+                data = AES._subBytes(data, inverse=True)
+                data = AES._addRoundKey(data, roundKeys[i])
+                data = AES._mixColumns(data, inverse=True)
             data = AES._shiftRows(data, inverse=True)
             data = AES._subBytes(data, inverse=True)
-            data = AES._addRoundKey(data, roundKeys[i])
-            data = AES._mixColumns(data, inverse=True)
-        data = AES._shiftRows(data, inverse=True)
-        data = AES._subBytes(data, inverse=True)
-        data = AES._addRoundKey(data, roundKeys[0])
-        return data
+            data = AES._addRoundKey(data, roundKeys[0])
+            return data
+
+
+        # String is bytes converted to string using utf-32
+        data = list(bytearray(string, encoding='iso-8859-1'))
         
+        bytes = AES._preprocess(data)
+        roundKeys = AES.keySchedule(key, 11)
+        decrypted = []
+        for b in bytes:
+            decrypted.append(decrypt16Bytes(b))
+
+        return AES.bytesToString(list(np.array(decrypted).flatten()), removeNulls=True)
         
+    
+
+    @staticmethod
+    def _preprocess(data):
+        padding = (16-len(data)%16)%16
+        data += [0 for _ in range(padding)]
+        iterator = AES.fourAtATime(data)
+        newData = []
+        for section in range(int(len(data)/16)):
+            segment = []
+            for _ in range(4):
+                segment.append(iterator.__next__())
+            newData.append(segment)
+        return newData
+            
 
     @staticmethod
     def shiftArr(row, amount:int):
@@ -222,12 +246,21 @@ class AES:
 
     
     @staticmethod
-    def bytesToString(data, forPrinting=False):
-        x = bytearray(np.array(data).flatten())
-        x = list(x)[::8] if forPrinting else list(x)
+    def bytesToString(data, removeNulls=False):
+        
+        
         s = ""
-        for i in x:
-            s += chr(i)
+        '''for i in data:
+            c = chr(i)
+            if not (removeNulls and c == "\x00"):
+                s += c'''
+        data = list(bytearray(data))
+        l = len(data)
+        
+        for i in range(l):
+            c = chr(data[i])
+            if not (removeNulls and c == "\x00"):
+                s += c
         return s
         #return x.decode(encoding='iso-8859-1')
 
@@ -246,7 +279,7 @@ if __name__ == "__main__":
         data = AES.bytesToString(data, forPrinting=True)
         assert(data == "JOHN is verycool")'''
         #x = AES.fourAtATime([1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
-
+    print(AES.decrypt("JOHN is verycool", data))
 
 
 
