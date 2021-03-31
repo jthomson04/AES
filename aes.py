@@ -94,6 +94,7 @@ class AES:
             encryptBytes = partial(AES.encrypt16Bytes, roundKeys=roundKeys)
             with Pool() as p:
                 encrypted = p.map(encryptBytes, bytes)
+            p.close()
         else:
             for b in bytes:
                 encrypted.append(AES.encrypt16Bytes(b, roundKeys))
